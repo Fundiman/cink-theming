@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lockscreen</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #0a0a0a;
+            color: #eee;
+            margin: 0;
+        }
+        .container {
+            background: #151515;
+            padding: 2.5rem;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid #222;
+        }
+        input {
+            background: #000;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 15px 0;
+            width: 180px;
+            text-align: center;
+        }
+        button {
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #555; }
+        #err { color: #ff5f56; font-size: 0.9rem; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h3 id="label">checking status...</h3>
+    <input type="password" id="p" placeholder="pin">
+    <br>
+    <button onclick="go()">submit</button>
+    <div id="err"></div>
+</div>
+
+<script>
+    const key = 'auth_blob';
+    const label = document.getElementById('label');
+    const err = document.getElementById('err');
+    const input = document.getElementById('p');
+
+    // check if it's the first time
+    const isFirst = !localStorage.getItem(key);
+    label.textContent = isFirst ? "set your pin" : "enter pin";
+
+    async function hash(d) {
+        const msgUint8 = new TextEncoder().encode(d);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function go() {
+        const val = input.value;
+        if (!val) return;
+
+        const h = await hash(val);
+
+        if (isFirst) {
+            localStorage.setItem(key, h);
+            unlockBridge();
+        } else {
+            if (h === localStorage.getItem(key)) {
+                unlockBridge();
+            } else {
+                err.textContent = "incorrect";
+                input.value = "";
+            }
+        }
+    }
+
+    function unlockBridge() {
+        if (window.cink && typeof window.cink.unlock === 'function') {
+            window.cink.unlock();
+        } else {
+            err.textContent = "bridge not found";
+            console.error("window.cink.unlock is missing");
+        }
+    }
+
+    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') go(); });
+</script>
+</body>
+</html>
